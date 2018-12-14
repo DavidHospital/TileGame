@@ -123,7 +123,6 @@ public class GameLWJGL {
 			int vbo = glGenBuffers();
 			glBindBuffer(GL_ARRAY_BUFFER, vbo);
 			glBufferData(GL_ARRAY_BUFFER, vertices, GL_STATIC_DRAW);
-			MemoryStack.stackPop();
 		}
 	}
 	
