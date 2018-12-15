@@ -9,6 +9,7 @@ import static org.lwjgl.opengl.GL30.*;
 import static org.lwjgl.system.MemoryStack.*;
 import static org.lwjgl.system.MemoryUtil.*;
 
+import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 
@@ -27,8 +28,8 @@ public class GameLWJGL {
 	private int width = 300;
 	private int height = 300;
 	
-	private int vao;
-	private int vbo;
+	//private int vao;
+	//private int vbo;
 	private int vertexShader;
 	private int fragmentShader;
 	private int shaderProgram;
@@ -37,8 +38,10 @@ public class GameLWJGL {
 	private int uniView;
 	private int uniProjection;
 	
+	private int indicesCount;
+	
 	public void run() {
-		System.out.println("Hello LWJGL " + Version.getVersion() + "!");
+		System.out.println("Hello LWJGL " + Version.getVersion());
 		
 		init();
 		initOpenGL();
@@ -53,8 +56,8 @@ public class GameLWJGL {
 		glfwSetErrorCallback(null).free();
 		
 		// Clean up OpenGL
-		glDeleteVertexArrays(vao);
-		glDeleteBuffers(vbo);
+		//glDeleteVertexArrays(vao);
+		//Draw.dispose();
 		glDeleteShader(vertexShader);
 		glDeleteShader(fragmentShader);
 		glDeleteShader(shaderProgram);
@@ -132,23 +135,42 @@ public class GameLWJGL {
 		// LWJGL detects the context that is current in the current thread,
 		// creates the GLCapabilities instance and makes the OpenGL
 		// bindings available for use.
-		GL.createCapabilities();
 		
-		// Initalize vao
-		vao = glGenVertexArrays();
+		GL.createCapabilities();
+
+		//Draw.init();
+		
+		int vao = glGenVertexArrays();
 		glBindVertexArray(vao);
 		
-		try (MemoryStack stack = MemoryStack.stackPush()) {
-			FloatBuffer vertices = stack.mallocFloat(3 * 6);
-			vertices.put(-0.6f).put(-0.4f).put(0f).put(1f).put(0f).put(0f);
-			vertices.put(0.6f).put(-0.4f).put(0f).put(0f).put(1f).put(0f);
-			vertices.put(0f).put(0.6f).put(0f).put(0f).put(0f).put(1f);
-			vertices.flip();
-			
-			vbo = glGenBuffers();
-			glBindBuffer(GL_ARRAY_BUFFER, vbo);
-			glBufferData(GL_ARRAY_BUFFER, vertices, GL_STATIC_DRAW);
-		}
+		float[] vertices = {
+				-0.5f,		-0.5f,			0f,	1f, 0f, 0f,
+				0.5f,		-0.5f, 			0f, 0f, 1f, 0f,
+				0.5f,		0.5f,				0f,	0f, 0f, 1f,
+				-0.5f,		0.5f,				1f,	1f, 1f, 1f
+		};
+	
+		FloatBuffer verticesBuffer = BufferUtils.createFloatBuffer(vertices.length);
+		verticesBuffer.put(vertices);
+		verticesBuffer.flip();
+		
+		int vbo = glGenBuffers();
+		glBindBuffer(GL_ARRAY_BUFFER, vbo);
+		glBufferData(GL_ARRAY_BUFFER, verticesBuffer, GL_STATIC_DRAW);
+		
+		byte[] indices = {
+			0, 1, 2,
+			2, 3, 0
+		};
+		
+		indicesCount = indices.length;
+		ByteBuffer indicesBuffer = BufferUtils.createByteBuffer(indicesCount);
+		indicesBuffer.put(indices);
+		indicesBuffer.flip();	
+		
+		int vboi = glGenBuffers();
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vboi);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, indicesBuffer, GL_STATIC_DRAW);
 		
 		// Compile shader program
 		String vertexSource = 
@@ -242,33 +264,31 @@ public class GameLWJGL {
 		projection.setOrtho(-ratio, ratio, -1f, 1f, -1f, 1f);
 		glUniformMatrix4fv(uniProjection, false, projection.get(BufferUtils.createFloatBuffer(16)));
 	}
-
-
-	float angle = 0f;
-	final float anglePerSecond = 1f;
 	
 	public void update(float delta) {
-		angle += delta * anglePerSecond;
+		System.out.println(delta);
 	}
 	
 	public void render(float delta) {
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);	// clear the framebuffer
 		
-		Matrix4f model = new Matrix4f();
-		model.rotate(angle, 0f, 0f, 1f);
-		glUniformMatrix4fv(uniModel, false, model.get(BufferUtils.createFloatBuffer(16)));
-		
-		glDrawArrays(GL_TRIANGLES, 0, 3);	
+		//Draw.draw();
+		glDrawElements(GL_TRIANGLES, indicesCount, GL_UNSIGNED_BYTE, 0);
 	}
 	
 	public void loop() {
 		
 		// Set the clear color
-		glClearColor(0.7f, 0.7f, 0.7f, 0.0f);
 		
 		// Run the rendering loop until the user has attempted to close
 		// the window or has pressed the ESCAPE key.
+		
+
+		//Draw.color(1f, 0f, 0f, 1f);
+		//Draw.rectangle(-0.5f, -0.5f, 1f, 1f);
+		
 		double time = glfwGetTime();
+		glClearColor(0.7f, 0.7f, 0.7f, 0.0f);
 		while (!glfwWindowShouldClose(window)) {
 			
 			float deltaTime = (float) (glfwGetTime() - time);
@@ -282,9 +302,6 @@ public class GameLWJGL {
 			// Poll for window events. The key callback above will only be
 			// invoked during this call.
 			glfwPollEvents();
-			
-			
-
 		}
 	}
 	
