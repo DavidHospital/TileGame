@@ -3,6 +3,8 @@ package main.lwjgl;
 import static org.lwjgl.glfw.Callbacks.*;
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL11.*;
+import static org.lwjgl.opengl.GL15.*;
+import static org.lwjgl.opengl.GL20.*;
 import static org.lwjgl.opengl.GL30.*;
 import static org.lwjgl.system.MemoryStack.*;
 import static org.lwjgl.system.MemoryUtil.*;
@@ -10,6 +12,8 @@ import static org.lwjgl.system.MemoryUtil.*;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 
+import org.joml.Matrix4f;
+import org.lwjgl.BufferUtils;
 import org.lwjgl.Version;
 import org.lwjgl.glfw.GLFWErrorCallback;
 import org.lwjgl.glfw.GLFWVidMode;
@@ -19,6 +23,9 @@ import org.lwjgl.system.MemoryStack;
 public class GameLWJGL {
 
 	private long window;
+	
+	private int width = 300;
+	private int height = 300;
 	
 	public void run() {
 		System.out.println("Hello LWJGL " + Version.getVersion() + "!");
@@ -57,7 +64,7 @@ public class GameLWJGL {
 		glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
 		
 		// Create the window
-		window = glfwCreateWindow(300, 300, "Hello World!", NULL, NULL);
+		window = glfwCreateWindow(width, height, "Hello World!", NULL, NULL);
 		if (window == NULL) {
 			throw new RuntimeException("Failed to create the GLFW window");
 		}
@@ -124,6 +131,111 @@ public class GameLWJGL {
 			glBindBuffer(GL_ARRAY_BUFFER, vbo);
 			glBufferData(GL_ARRAY_BUFFER, vertices, GL_STATIC_DRAW);
 		}
+		
+		// Compile shader program
+		String vertexSource = 
+				"#version 150 core\r\n" + 
+				"\r\n" + 
+				"in vec3 position;\r\n" + 
+				"in vec3 color;\r\n" + 
+				"\r\n" + 
+				"out vec3 vertexColor;\r\n" + 
+				"\r\n" + 
+				"uniform mat4 model;\r\n" + 
+				"uniform mat4 view;\r\n" + 
+				"uniform mat4 projection;\r\n" + 
+				"\r\n" + 
+				"void main() {\r\n" + 
+				"    vertexColor = color;\r\n" + 
+				"    mat4 mvp = projection * view * model;\r\n" + 
+				"    gl_Position = mvp * vec4(position, 1.0);\r\n" + 
+				"}\r\n" + 
+				"";
+		
+		String fragmentSource = 
+				"#version 150 core\r\n" + 
+				"\r\n" + 
+				"in vec3 vertexColor;\r\n" + 
+				"\r\n" + 
+				"out vec4 fragColor;\r\n" + 
+				"\r\n" + 
+				"void main() {\r\n" + 
+				"    fragColor = vec4(vertexColor, 1.0);\r\n" + 
+				"}\r\n" + 
+				"";
+		
+		// Compile vertex shader
+		int vertexShader = glCreateShader(GL_VERTEX_SHADER);
+		glShaderSource(vertexShader, vertexSource);
+		glCompileShader(vertexShader);
+		
+		int status = glGetShaderi(vertexShader, GL_COMPILE_STATUS);
+		if (status != GL_TRUE) {
+			throw new RuntimeException(glGetShaderInfoLog(vertexShader));
+		}
+		
+		// Compile Fragment shader
+		int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+		glShaderSource(fragmentShader, fragmentSource);
+		glCompileShader(fragmentShader);
+		
+		status = glGetShaderi(fragmentShader, GL_COMPILE_STATUS);
+		if (status != GL_TRUE) {
+			throw new RuntimeException(glGetShaderInfoLog(fragmentShader));
+		}
+		
+		// Build and link the shader program
+		int shaderProgram = glCreateProgram();
+		glAttachShader(shaderProgram, vertexShader);
+		glAttachShader(shaderProgram, fragmentShader);
+		glBindFragDataLocation(shaderProgram, 0, "fragColor");
+		glLinkProgram(shaderProgram);
+		
+		status = glGetProgrami(shaderProgram, GL_LINK_STATUS);
+		if (status != GL_TRUE) {
+			throw new RuntimeException(glGetProgramInfoLog(shaderProgram));
+		}
+		
+		glUseProgram(shaderProgram);
+		
+		// Enable all vertex attributes in the shader program
+		int floatSize = 4;
+		
+		int posAttrib = glGetAttribLocation(shaderProgram, "position");
+		glEnableVertexAttribArray(posAttrib);
+		glVertexAttribPointer(posAttrib, 3, GL_FLOAT, false, 6 * floatSize, 0);
+		
+		int colAttrib = glGetAttribLocation(shaderProgram, "color");
+		glEnableVertexAttribArray(colAttrib);
+		glVertexAttribPointer(colAttrib, 3, GL_FLOAT, false, 6 * floatSize, 3 * floatSize);
+		
+		// Enable all uniforms
+		int uniModel = glGetUniformLocation(shaderProgram, "model");
+		Matrix4f model = new Matrix4f();
+		glUniformMatrix4fv(uniModel, false, model.get(BufferUtils.createFloatBuffer(16)));
+
+		int uniView = glGetUniformLocation(shaderProgram, "view");
+		Matrix4f view = new Matrix4f();
+		glUniformMatrix4fv(uniView, false, view.get(BufferUtils.createFloatBuffer(16)));
+
+		int uniProjection = glGetUniformLocation(shaderProgram, "projection");
+		float ratio = (float) width / height;
+		Matrix4f projection = new Matrix4f();
+		projection.setOrtho(-ratio, ratio, -1f, 1f, -1f, 1f);
+		glUniformMatrix4fv(uniProjection, false, projection.get(BufferUtils.createFloatBuffer(16)));
+	}
+	
+	public void update(float delta) {
+		
+	}
+	
+	public void render(float delta) {
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);	// clean the framebuffer
+		
+		// DRAW STUFF
+		
+		glDrawArrays(GL_TRIANGLES, 0, 3);
+		
 	}
 	
 	public void loop() {
@@ -133,11 +245,14 @@ public class GameLWJGL {
 		
 		// Run the rendering loop until the user has attempted to close
 		// the window or has pressed the ESCAPE key.
+		double time = glfwGetTime();
 		while (!glfwWindowShouldClose(window)) {
 			
-			double time = glfwGetTime();
+			float deltaTime = (float) (glfwGetTime() - time);
+			time = glfwGetTime();
 			
-			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);	// clean the framebuffer
+			update(deltaTime);
+			render(deltaTime);
 			
 			glfwSwapBuffers(window);	// Swap the color buffers
 			
