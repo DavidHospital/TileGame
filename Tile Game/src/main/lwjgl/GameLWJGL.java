@@ -27,6 +27,16 @@ public class GameLWJGL {
 	private int width = 300;
 	private int height = 300;
 	
+	private int vao;
+	private int vbo;
+	private int vertexShader;
+	private int fragmentShader;
+	private int shaderProgram;
+	
+	private int uniModel;
+	private int uniView;
+	private int uniProjection;
+	
 	public void run() {
 		System.out.println("Hello LWJGL " + Version.getVersion() + "!");
 		
@@ -41,6 +51,14 @@ public class GameLWJGL {
 		// Terminate GLFW and free the error callback
 		glfwTerminate();
 		glfwSetErrorCallback(null).free();
+		
+		// Clean up OpenGL
+		glDeleteVertexArrays(vao);
+		glDeleteBuffers(vbo);
+		glDeleteShader(vertexShader);
+		glDeleteShader(fragmentShader);
+		glDeleteShader(shaderProgram);
+		
 	}
 	
 	public void init() {
@@ -117,7 +135,7 @@ public class GameLWJGL {
 		GL.createCapabilities();
 		
 		// Initalize vao
-		int vao = glGenVertexArrays();
+		vao = glGenVertexArrays();
 		glBindVertexArray(vao);
 		
 		try (MemoryStack stack = MemoryStack.stackPush()) {
@@ -127,7 +145,7 @@ public class GameLWJGL {
 			vertices.put(0f).put(0.6f).put(0f).put(0f).put(0f).put(1f);
 			vertices.flip();
 			
-			int vbo = glGenBuffers();
+			vbo = glGenBuffers();
 			glBindBuffer(GL_ARRAY_BUFFER, vbo);
 			glBufferData(GL_ARRAY_BUFFER, vertices, GL_STATIC_DRAW);
 		}
@@ -165,7 +183,7 @@ public class GameLWJGL {
 				"";
 		
 		// Compile vertex shader
-		int vertexShader = glCreateShader(GL_VERTEX_SHADER);
+		vertexShader = glCreateShader(GL_VERTEX_SHADER);
 		glShaderSource(vertexShader, vertexSource);
 		glCompileShader(vertexShader);
 		
@@ -175,7 +193,7 @@ public class GameLWJGL {
 		}
 		
 		// Compile Fragment shader
-		int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+		fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
 		glShaderSource(fragmentShader, fragmentSource);
 		glCompileShader(fragmentShader);
 		
@@ -185,7 +203,7 @@ public class GameLWJGL {
 		}
 		
 		// Build and link the shader program
-		int shaderProgram = glCreateProgram();
+		shaderProgram = glCreateProgram();
 		glAttachShader(shaderProgram, vertexShader);
 		glAttachShader(shaderProgram, fragmentShader);
 		glBindFragDataLocation(shaderProgram, 0, "fragColor");
@@ -210,32 +228,37 @@ public class GameLWJGL {
 		glVertexAttribPointer(colAttrib, 3, GL_FLOAT, false, 6 * floatSize, 3 * floatSize);
 		
 		// Enable all uniforms
-		int uniModel = glGetUniformLocation(shaderProgram, "model");
+		uniModel = glGetUniformLocation(shaderProgram, "model");
 		Matrix4f model = new Matrix4f();
 		glUniformMatrix4fv(uniModel, false, model.get(BufferUtils.createFloatBuffer(16)));
 
-		int uniView = glGetUniformLocation(shaderProgram, "view");
+		uniView = glGetUniformLocation(shaderProgram, "view");
 		Matrix4f view = new Matrix4f();
 		glUniformMatrix4fv(uniView, false, view.get(BufferUtils.createFloatBuffer(16)));
 
-		int uniProjection = glGetUniformLocation(shaderProgram, "projection");
+		uniProjection = glGetUniformLocation(shaderProgram, "projection");
 		float ratio = (float) width / height;
 		Matrix4f projection = new Matrix4f();
 		projection.setOrtho(-ratio, ratio, -1f, 1f, -1f, 1f);
 		glUniformMatrix4fv(uniProjection, false, projection.get(BufferUtils.createFloatBuffer(16)));
 	}
+
+
+	float angle = 0f;
+	final float anglePerSecond = 1f;
 	
 	public void update(float delta) {
-		
+		angle += delta * anglePerSecond;
 	}
 	
 	public void render(float delta) {
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);	// clean the framebuffer
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);	// clear the framebuffer
 		
-		// DRAW STUFF
+		Matrix4f model = new Matrix4f();
+		model.rotate(angle, 0f, 0f, 1f);
+		glUniformMatrix4fv(uniModel, false, model.get(BufferUtils.createFloatBuffer(16)));
 		
-		glDrawArrays(GL_TRIANGLES, 0, 3);
-		
+		glDrawArrays(GL_TRIANGLES, 0, 3);	
 	}
 	
 	public void loop() {
