@@ -63,6 +63,9 @@ public class GameLWJGL {
 		glfwSetErrorCallback(null).free();
 		
 		// Clean up OpenGL
+		glDeleteVertexArrays(vao);
+		glDeleteBuffers(vbo);
+		glDeleteBuffers(vboi);
 		glDeleteShader(vertexShader);
 		glDeleteShader(fragmentShader);
 		glDeleteShader(shaderProgram);
@@ -283,6 +286,13 @@ public class GameLWJGL {
 	int fps = 0;
 	float fpsCounter = 0f;
 	
+	float angle = 0f;
+	float radius = 1f;
+	float anglePerSecond = 1f;
+	
+	float lastX = 0;
+	float lastY = 0;
+	
 	public void update(float delta) {
 		fpsCounter += delta;
 		fps ++;
@@ -291,6 +301,15 @@ public class GameLWJGL {
 			System.out.println(fps);
 			fps = 0;
 		}
+		
+		angle += anglePerSecond * delta;
+		
+		float x = (float) Math.cos(angle) * radius;
+		float y = (float) Math.sin(angle) * radius;
+		
+		Matrix4f view = new Matrix4f();
+		view.translate(x, y, 0f);
+		glUniformMatrix4fv(uniView, false, view.get(BufferUtils.createFloatBuffer(16)));
 	}
 	
 	public void render(float delta) {
