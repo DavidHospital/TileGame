@@ -23,16 +23,23 @@ import org.lwjgl.system.MemoryStack;
 
 public class GameLWJGL {
 
+	private final int floatSize = 4;
+	
 	private long window;
 	
 	private int width = 300;
 	private int height = 300;
 	
-	//private int vao;
-	//private int vbo;
 	private int vertexShader;
 	private int fragmentShader;
 	private int shaderProgram;
+	
+	private int vao;
+	private int vbo;
+	private int vboi;
+	
+	private int posAttrib;
+	private int colAttrib;
 	
 	private int uniModel;
 	private int uniView;
@@ -43,7 +50,7 @@ public class GameLWJGL {
 	public void run() {
 		System.out.println("Hello LWJGL " + Version.getVersion());
 		
-		init();
+		initGLFW();
 		initOpenGL();
 		loop();
 		
@@ -56,15 +63,13 @@ public class GameLWJGL {
 		glfwSetErrorCallback(null).free();
 		
 		// Clean up OpenGL
-		//glDeleteVertexArrays(vao);
-		//Draw.dispose();
 		glDeleteShader(vertexShader);
 		glDeleteShader(fragmentShader);
 		glDeleteShader(shaderProgram);
 		
 	}
 	
-	public void init() {
+	public void initGLFW() {
 		// Setup an error callback, the default implementation
 		// will print the error message in System.err
 		GLFWErrorCallback.createPrint(System.err).set();
@@ -124,8 +129,6 @@ public class GameLWJGL {
 		
 		// Make the window visible
 		glfwShowWindow(window);
-
-
 	}
 	
 	public void initOpenGL() {
@@ -137,40 +140,10 @@ public class GameLWJGL {
 		// bindings available for use.
 		
 		GL.createCapabilities();
-
-		//Draw.init();
 		
-		int vao = glGenVertexArrays();
-		glBindVertexArray(vao);
-		
-		float[] vertices = {
-				-0.5f,		-0.5f,			0f,	1f, 0f, 0f,
-				0.5f,		-0.5f, 			0f, 0f, 1f, 0f,
-				0.5f,		0.5f,				0f,	0f, 0f, 1f,
-				-0.5f,		0.5f,				1f,	1f, 1f, 1f
-		};
-	
-		FloatBuffer verticesBuffer = BufferUtils.createFloatBuffer(vertices.length);
-		verticesBuffer.put(vertices);
-		verticesBuffer.flip();
-		
-		int vbo = glGenBuffers();
-		glBindBuffer(GL_ARRAY_BUFFER, vbo);
-		glBufferData(GL_ARRAY_BUFFER, verticesBuffer, GL_STATIC_DRAW);
-		
-		byte[] indices = {
-			0, 1, 2,
-			2, 3, 0
-		};
-		
-		indicesCount = indices.length;
-		ByteBuffer indicesBuffer = BufferUtils.createByteBuffer(indicesCount);
-		indicesBuffer.put(indices);
-		indicesBuffer.flip();	
-		
-		int vboi = glGenBuffers();
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vboi);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, indicesBuffer, GL_STATIC_DRAW);
+		vao = glGenVertexArrays();
+		vbo = glGenBuffers();
+		vboi = glGenBuffers();
 		
 		// Compile shader program
 		String vertexSource = 
@@ -237,17 +210,10 @@ public class GameLWJGL {
 		}
 		
 		glUseProgram(shaderProgram);
-		
-		// Enable all vertex attributes in the shader program
-		int floatSize = 4;
-		
-		int posAttrib = glGetAttribLocation(shaderProgram, "position");
-		glEnableVertexAttribArray(posAttrib);
-		glVertexAttribPointer(posAttrib, 3, GL_FLOAT, false, 6 * floatSize, 0);
-		
-		int colAttrib = glGetAttribLocation(shaderProgram, "color");
-		glEnableVertexAttribArray(colAttrib);
-		glVertexAttribPointer(colAttrib, 3, GL_FLOAT, false, 6 * floatSize, 3 * floatSize);
+
+
+		posAttrib = glGetAttribLocation(shaderProgram, "position");
+		colAttrib = glGetAttribLocation(shaderProgram, "color");
 		
 		// Enable all uniforms
 		uniModel = glGetUniformLocation(shaderProgram, "model");
@@ -265,30 +231,96 @@ public class GameLWJGL {
 		glUniformMatrix4fv(uniProjection, false, projection.get(BufferUtils.createFloatBuffer(16)));
 	}
 	
+	public void drawQuad(float x, float y, float w, float h) {
+		float[] vertices = {
+				x, 		y,			0f,	1f, 0f, 0f,
+				x+w, 	y, 			0f, 0f, 1f, 0f,
+				x+w,	y+h,		0f,	0f, 0f, 1f,
+				x,		y+h,		1f,	1f, 1f, 1f
+		};
+	
+		byte[] indices = {
+				0, 1, 2,
+				2, 3, 0
+		};
+		
+		// bind vao and vbos
+		glBindVertexArray(vao);
+		glBindBuffer(GL_ARRAY_BUFFER, vbo);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vboi);
+		
+		// vertices
+		FloatBuffer verticesBuffer = BufferUtils.createFloatBuffer(vertices.length);
+		verticesBuffer.put(vertices);
+		verticesBuffer.flip();
+		
+		glBufferData(GL_ARRAY_BUFFER, verticesBuffer, GL_STATIC_DRAW);
+		
+		//indices
+		indicesCount = indices.length;
+		ByteBuffer indicesBuffer = BufferUtils.createByteBuffer(indicesCount);
+		indicesBuffer.put(indices);
+		indicesBuffer.flip();
+		
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, indicesBuffer, GL_STATIC_DRAW);
+		
+		// enable shader attributes
+		glEnableVertexAttribArray(posAttrib);
+		glVertexAttribPointer(posAttrib, 3, GL_FLOAT, false, 6 * floatSize, 0);
+		
+		glEnableVertexAttribArray(colAttrib);
+		glVertexAttribPointer(colAttrib, 3, GL_FLOAT, false, 6 * floatSize, 3 * floatSize);
+		
+		// Draw elements of quad
+		glDrawElements(GL_TRIANGLES, indicesCount, GL_UNSIGNED_BYTE, 0);
+		
+		// unbind vao and vbos
+		glBindVertexArray(0);
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+	}
+	
+	int fps = 0;
+	float fpsCounter = 0f;
+	
 	public void update(float delta) {
-		System.out.println(delta);
+		fpsCounter += delta;
+		fps ++;
+		if (fpsCounter >= 1f) {
+			fpsCounter -= 1f;
+			System.out.println(fps);
+			fps = 0;
+		}
 	}
 	
 	public void render(float delta) {
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);	// clear the framebuffer
+
+		int numX = 16;
+		int numY = 16;
 		
-		//Draw.draw();
-		glDrawElements(GL_TRIANGLES, indicesCount, GL_UNSIGNED_BYTE, 0);
+		float w = 2f / numX;
+		float h = 2f / numY;
+		
+		for (int i = 0; i < numX; i ++) {
+			for (int j = 0; j < numY; j ++) {
+				float x = (float) i / numX * 2f - 1f;
+				float y = (float) j / numY * 2f - 1f;
+				
+				drawQuad(x, y, w, h);
+			}
+		}
 	}
 	
 	public void loop() {
 		
 		// Set the clear color
+		glClearColor(0.7f, 0.7f, 0.7f, 0.0f);
+		
 		
 		// Run the rendering loop until the user has attempted to close
-		// the window or has pressed the ESCAPE key.
-		
-
-		//Draw.color(1f, 0f, 0f, 1f);
-		//Draw.rectangle(-0.5f, -0.5f, 1f, 1f);
-		
+		// the window or has pressed the ESCAPE key.\
 		double time = glfwGetTime();
-		glClearColor(0.7f, 0.7f, 0.7f, 0.0f);
 		while (!glfwWindowShouldClose(window)) {
 			
 			float deltaTime = (float) (glfwGetTime() - time);
